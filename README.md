@@ -14,8 +14,6 @@ That's fine and dandy but it gets annoying when you leave on your main account a
 
 What this program does is enforce the settings YOU WANT, not what Roblox last wrote. If Roblox tries to change any settings in the xml file, this will re-apply your settings automatically.
 
-> ⚠️ **Note:** The auto-override/enforcement feature is still a work in progress and not fully reliable yet.
-
 In no way does this program tamper with non-Roblox related files or edit the Roblox binary or runtime. This only edits the settings file without you having to open up Roblox yourself.
 
 ## What it edits
