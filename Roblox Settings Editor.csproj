@@ -7,7 +7,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationIcon>Assets\Icons\App_Icon.ico</ApplicationIcon>
     <!-- Windows Explorer metadata -->
-    <Version>1.1.0</Version> <!-- Version number -->
+    <Version>1.1.1</Version> <!-- Version number -->
     <AssemblyName>Roblox Settings Editor</AssemblyName> <!-- File name -->
     <Product>Roblox Settings Editor</Product> <!-- Download/Display name -->
     <Title>Roblox Settings Editor</Title>
