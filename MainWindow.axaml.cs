@@ -5,6 +5,7 @@ using System;
 using Avalonia.Platform.Storage;
 using System.Xml;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Roblox_Settings_Editor;
 
@@ -93,52 +94,43 @@ public partial class MainWindow : Window
 
             if (!string.IsNullOrEmpty(settings.FilePath) && File.Exists(settings.FilePath))
             {
-                StartFileWatcher(settings.FilePath); // Add this
+                StartPolling(settings.FilePath); // Add this
             }
         }
     }
 
-    private FileSystemWatcher? fileWatcher;
-    private bool isApplyingSettings = false; // Add this flag
+    private bool isApplyingSettings = false;
+    private DateTime lastWriteTime = DateTime.MinValue;
+    private CancellationTokenSource? pollingCts;
 
-    private void StartFileWatcher(string filePath)
+    private async void StartPolling(string filePath)
     {
-        fileWatcher?.Dispose();
+        // Cancel previous polling loop
+        pollingCts?.Cancel();
+        pollingCts = new CancellationTokenSource();
+        var token = pollingCts.Token;
 
-        try
+        while (!token.IsCancellationRequested)
         {
-            var directory = Path.GetDirectoryName(filePath);
-            var fileName = Path.GetFileName(filePath);
+            await Task.Delay(500);
+            if (!File.Exists(filePath) || isApplyingSettings) continue;
 
-            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(fileName))
-                return;
+            var currentWriteTime = File.GetLastWriteTime(filePath);
 
-            fileWatcher = new FileSystemWatcher(directory)
+            if (currentWriteTime != lastWriteTime && lastWriteTime != DateTime.MinValue)
             {
-                Filter = fileName,
-                NotifyFilter = NotifyFilters.LastWrite
-            };
-
-            fileWatcher.Changed += async (s, e) =>
-            {
-                // IGNORE if we're the ones writing
-                if (isApplyingSettings) return;
-
-                await Task.Delay(500);
-
-                // Double-check we're not writing
-                if (isApplyingSettings) return;
-
+                lastWriteTime = currentWriteTime;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     ApplySettings();
                     StatusMessage.Text = "File changed - settings reapplied!";
                 });
-            };
-
-            fileWatcher.EnableRaisingEvents = true;
+            }
+            else
+            {
+                lastWriteTime = currentWriteTime;
+            }
         }
-        catch { }
     }
 
     private bool ApplySettings()
@@ -193,6 +185,11 @@ public partial class MainWindow : Window
             UpdateNode("int[@name='GraphicsQualityLevel']", settings.GraphicsLevel.ToString());
             UpdateNode("float[@name='MasterVolume']", (settings.VolumeLevel / 10.0f).ToString("0.000000000"));
             UpdateNode("bool[@name='Fullscreen']", settings.Fullscreen.ToString().ToLower());
+            UpdateNode("token[@name='SavedQualityLevel']", ((int)Math.Round(1 + (settings.GraphicsLevel - 1) * 9.0 / 20.0)).ToString());
+            if (!settings.Fullscreen)
+            {
+                UpdateNode("bool[@name='StartMaximized']", "false");
+            }
 
             // Window size (uses parent parameter)
             XmlNode? windowSizeNode = propertiesNode.SelectSingleNode("Vector2[@name='StartScreenSize']");
@@ -204,7 +201,7 @@ public partial class MainWindow : Window
 
             // Save
             xmlDoc.Save(FilePathTextBox.Text);
-            // Wait a bit before clearing flag
+            lastWriteTime = File.GetLastWriteTime(FilePathTextBox.Text);
             Task.Delay(1000).ContinueWith(_ => isApplyingSettings = false);
             StatusMessage.Text = "Settings applied successfully!";
             return true;
@@ -256,7 +253,7 @@ public partial class MainWindow : Window
             var filePath = files[0].Path.LocalPath;
             settings.FilePath = filePath;
             FilePathTextBox.Text = settings.FilePath;
-            StartFileWatcher(filePath); // Add this line
+            StartPolling(filePath); // Add this line
         }
     }
 
